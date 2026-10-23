@@ -1,0 +1,102 @@
+paths:
+  /transkrip/{nim}:
+    get:
+      tags: [Transkrip]
+      summary: "Transkrip per NIM (mahasiswa: NIM sendiri; admin: semua)"
+      parameters:
+        - $ref: '#/components/parameters/DeviceID'
+        - $ref: '#/components/parameters/RequestID'
+        - in: path
+          name: nim
+          required: true
+          schema: { type: string, example: '227006001' }
+      responses:
+        '200':
+          description: >-
+            Snapshot nilai FINAL + IPK = sum(bobot*sks)/sum(sks).
+            NIM tanpa data → items kosong, total_sks 0, ipk 0.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      nim: { type: string }
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            kelas_id: { type: integer }
+                            kode_mk: { type: string, example: KP70065004 }
+                            nama_mk: { type: string }
+                            sks: { type: integer }
+                            semester: { type: string, enum: [Ganjil, Genap] }
+                            tahun_ajaran: { type: string, example: '2026/2027' }
+                            nilai_angka: { type: number }
+                            nilai_huruf: { type: string, example: A }
+                            bobot: { type: number, example: 4.0 }
+                      total_sks: { type: integer }
+                      ipk: { type: number, example: 4.0 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: ROLE_NOT_ALLOWED (dosen/service) | NOT_OWN_DATA | SERVICE_TOKEN_ON_USER_ENDPOINT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /transkrip/sinkron:
+    post:
+      tags: [Transkrip]
+      summary: Sinkron nilai final (HANYA token service, dipanggil Service Nilai via gateway)
+      description: Upsert idempoten terhadap UNIQUE(nim, kelas_id).
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kelas_id, kode_mk, nama_mk, sks, semester, tahun_ajaran, items]
+              properties:
+                kelas_id: { type: integer }
+                kode_mk: { type: string }
+                nama_mk: { type: string }
+                sks: { type: integer, minimum: 1, maximum: 6 }
+                semester: { type: string, enum: [Ganjil, Genap] }
+                tahun_ajaran: { type: string, example: '2026/2027' }
+                items:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [nim, nilai_angka, nilai_huruf, bobot]
+                    properties:
+                      nim: { type: string }
+                      nilai_angka: { type: number }
+                      nilai_huruf: { type: string }
+                      bobot: { type: number }
+      responses:
+        '200':
+          description: Baris ter-upsert (idempoten)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      upserted: { type: integer, example: 3 }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: USER_TOKEN_ON_SERVICE_ENDPOINT | SERVICE_NOT_ALLOWED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

@@ -1,0 +1,161 @@
+# docker-compose.yml — DRAFT (belum diuji; Dockerfile tiap service dibuat di Fase 0 PLAN.md)
+# Jalankan: cp .env.example .env && docker compose up -d --build
+# Reset total (hapus data + kunci): docker compose down -v
+name: zero-trust-nilai
+
+services:
+  # Membuat pasangan kunci RS256 sekali saja. Private key hanya di volume jwt_private
+  # (dimount ke gateway); service hanya menerima volume jwt_public.
+  keygen:
+    image: alpine/openssl
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        set -e;
+        [ -f /keys-private/private.pem ] || openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /keys-private/private.pem;
+        openssl pkey -in /keys-private/private.pem -pubout -out /keys-public/public.pem;
+        chmod 644 /keys-private/private.pem /keys-public/public.pem
+    volumes:
+      - jwt_private:/keys-private
+      - jwt_public:/keys-public
+    restart: "no"
+
+  mysql:
+    image: mysql:8.4
+    command:
+      - --default-time-zone=+00:00
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      ZT_GATEWAY_DB_PASSWORD: ${ZT_GATEWAY_DB_PASSWORD}
+      ZT_NILAI_DB_PASSWORD: ${ZT_NILAI_DB_PASSWORD}
+      ZT_TRANSKRIP_DB_PASSWORD: ${ZT_TRANSKRIP_DB_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:3307:3306"   # opsional, untuk inspeksi lewat DBeaver/mysql client
+    healthcheck:
+      # -h 127.0.0.1 (TCP) supaya hanya sehat setelah server final jalan, bukan server init sementara
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  gateway:
+    build: ./gateway
+    depends_on:
+      mysql: { condition: service_healthy }
+      keygen: { condition: service_completed_successfully }
+    ports:
+      - "3000:3000"             # satu-satunya pintu masuk
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${MYSQL_DATABASE}
+      DB_USER: zt_gateway
+      DB_PASSWORD: ${ZT_GATEWAY_DB_PASSWORD}
+      JWT_PRIVATE_KEY_PATH: /run/keys/private/private.pem
+      JWT_PUBLIC_KEY_PATH: /run/keys/public/public.pem
+      JWT_ISSUER: zt-gateway
+      ACCESS_TOKEN_TTL_SECONDS: 600
+      REFRESH_TOKEN_TTL_SECONDS: 86400
+      SERVICE_TOKEN_TTL_SECONDS: 300
+      GATEWAY_SECRET: ${GATEWAY_SECRET}
+      SERVICE_NILAI_URL: http://service-nilai:3001
+      SERVICE_TRANSKRIP_URL: http://service-transkrip:3002
+      ACCESS_HOURS_START: ${ACCESS_HOURS_START:-07:00}
+      ACCESS_HOURS_END: ${ACCESS_HOURS_END:-21:00}
+      ACCESS_HOURS_TZ: ${ACCESS_HOURS_TZ:-Asia/Jakarta}
+      SWAGGER_ENABLED: "true"
+      LOG_LEVEL: info
+    volumes:
+      - jwt_private:/run/keys/private:ro
+      - jwt_public:/run/keys/public:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  service-nilai:
+    build: ./service-nilai
+    depends_on:
+      mysql: { condition: service_healthy }
+      keygen: { condition: service_completed_successfully }
+    ports:
+      - "127.0.0.1:3001:3001"   # DEMO SAJA: agar bisa ditunjukkan akses langsung ditolak. Hapus di produksi.
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${MYSQL_DATABASE}
+      DB_USER: zt_nilai
+      DB_PASSWORD: ${ZT_NILAI_DB_PASSWORD}
+      JWT_PUBLIC_KEY_PATH: /run/keys/public/public.pem
+      JWT_ISSUER: zt-gateway
+      GATEWAY_SECRET: ${GATEWAY_SECRET}
+      GATEWAY_URL: http://gateway:3000
+      SERVICE_CLIENT_ID: service-nilai
+      SERVICE_CLIENT_SECRET: ${SERVICE_NILAI_CLIENT_SECRET}
+      LOG_LEVEL: info
+    volumes:
+      - jwt_public:/run/keys/public:ro
+    healthcheck:
+      # endpoint health service pun wajib X-Gateway-Secret (tanpa pengecualian)
+      test: ["CMD-SHELL", "wget -qO- --header=\"X-Gateway-Secret: $$GATEWAY_SECRET\" http://127.0.0.1:3001/internal/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  service-transkrip:
+    build: ./service-transkrip
+    depends_on:
+      mysql: { condition: service_healthy }
+      keygen: { condition: service_completed_successfully }
+    ports:
+      - "127.0.0.1:3002:3002"   # DEMO SAJA (lihat catatan service-nilai)
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${MYSQL_DATABASE}
+      DB_USER: zt_transkrip
+      DB_PASSWORD: ${ZT_TRANSKRIP_DB_PASSWORD}
+      JWT_PUBLIC_KEY_PATH: /run/keys/public/public.pem
+      JWT_ISSUER: zt-gateway
+      GATEWAY_SECRET: ${GATEWAY_SECRET}
+      LOG_LEVEL: info
+    volumes:
+      - jwt_public:/run/keys/public:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- --header=\"X-Gateway-Secret: $$GATEWAY_SECRET\" http://127.0.0.1:3002/internal/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Alat inspeksi DB (klien DB untuk demo/pengujian). Di luar jalur PEP — hanya untuk lab,
+  # jangan dijalankan di produksi. Login: user MySQL apa pun dari .env; root untuk melihat
+  # seluruh tabel, atau zt_* untuk melihat batasan grant masing-masing (T-DB-01/02).
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:5.2.2
+    depends_on:
+      mysql: { condition: service_healthy }
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 32M
+    ports:
+      - "127.0.0.1:8081:80"
+
+volumes:
+  mysql_data:
+  jwt_private:
+  jwt_public:

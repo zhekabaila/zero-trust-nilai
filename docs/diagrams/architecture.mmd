@@ -1,0 +1,53 @@
+flowchart TB
+    subgraph clients ["Klien"]
+        MHS["Mahasiswa / Dosen / Admin<br/>(Postman, curl, Swagger UI)"]
+        SVCCLI["Service Nilai<br/>(client service)"]
+    end
+
+    subgraph GW ["API Gateway :3000 (PEP)"]
+        RID["request-id"]
+        AUTHN["authenticate<br/>verifikasi JWT RS256, iss, typ"]
+        PE["Policy Engine<br/>default deny, Tabel 3"]
+        ATTR[("Atribut kebijakan<br/>users, devices, kelas, nilai")]
+        AUDITW["AuditService<br/>1 baris per request"]
+        PROXY["proxy.factory<br/>secret klien dihapus,<br/>secret asli dipasang"]
+        AUTHM["Modul Auth (PA)<br/>login, refresh, logout,<br/>token service"]
+        AUDITR["Audit trail<br/>GET /audit, admin only"]
+    end
+
+    subgraph Svc ["Backend, hanya lewat gateway"]
+        NV["Service Nilai :3001<br/>verify secret + ulang token<br/>guard atomik SQL"]
+        TV["Service Transkrip :3002<br/>verify secret + ulang token"]
+    end
+
+    subgraph DB ["MySQL 8.4, user terpisah per komponen"]
+        T1[("users, devices,<br/>service_clients, refresh_tokens")]
+        T2[("kelas, nilai, mata_kuliah")]
+        T3[("transkrip")]
+        T4[("audit_logs")]
+    end
+
+    KEYS[("Volume keys<br/>jwt_private hanya di gateway<br/>jwt_public di semua service")]
+
+    MHS -->|"Bearer + X-Device-ID"| RID
+    RID --> AUTHN
+    AUTHN --> PE
+    PE --> ATTR
+    AUTHN -.->|"401 TOKEN_*"| ERR["Error handler global"]
+    PE -.->|"deny 403 + reason"| ERR
+    PE -->|"allow"| PROXY
+    PROXY -->|"X-Gateway-Secret + token"| NV
+    PROXY -->|"X-Gateway-Secret + token"| TV
+    SVCCLI -.->|"POST /auth/service lalu /transkrip/sinkron"| PROXY
+    AUTHM --- RID
+    ERR --> AUDITW
+    PE --> AUDITW
+    AUDITW -->|"INSERT"| T4
+    AUTHN --- KEYS
+    AUDITR -->|"SELECT"| T4
+    NV -->|"zt_nilai, tanpa password_hash"| T2
+    NV -->|"SELECT atribut users"| T1
+    TV -->|"SELECT INSERT UPDATE"| T3
+    AUTHM -->|"zt_gateway"| T1
+    PE -->|"zt_gateway SELECT"| T2
+    AUDITR -->|"zt_gateway"| T4

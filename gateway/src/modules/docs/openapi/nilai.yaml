@@ -1,0 +1,104 @@
+paths:
+  /nilai:
+    get:
+      tags: [Nilai]
+      summary: Daftar nilai (scoping sesuai role)
+      description: >-
+        mahasiswa → hanya nilainya; dosen → kelas yang diampu.
+        Deny: ROLE_NOT_ALLOWED (admin/service), NOT_OWN_DATA, NOT_CLASS_OWNER.
+      parameters:
+        - $ref: '#/components/parameters/DeviceID'
+        - $ref: '#/components/parameters/RequestID'
+        - in: query
+          name: kelas_id
+          required: false
+          description: Filter kelas (dosen)
+          schema: { type: integer, example: 1 }
+        - in: query
+          name: nim
+          required: false
+          description: Hanya NIM sendiri yang diloloskan Policy Engine
+          schema: { type: string, example: '227006001' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        kelas_id: { type: integer }
+                        mata_kuliah:
+                          type: object
+                          properties:
+                            kode: { type: string, example: KP70065004 }
+                            nama: { type: string }
+                            sks: { type: integer }
+                        nim: { type: string }
+                        nama_mahasiswa: { type: string }
+                        nilai_angka: { type: number, nullable: true, example: 85.0 }
+                        nilai_huruf: { type: string, nullable: true, example: A }
+                        status: { type: string, enum: [DRAFT, FINAL] }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /nilai/{id}:
+    put:
+      tags: [Nilai]
+      summary: Ubah nilai DRAFT (dosen pengampu, dalam jam akses)
+      description: >-
+        Guard atomik di SQL (D11): UPDATE hanya bila status='DRAFT' dan
+        dosen_id = subjek. Huruf & bobot dihitung server dari angka.
+      parameters:
+        - $ref: '#/components/parameters/DeviceID'
+        - $ref: '#/components/parameters/RequestID'
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nilai_angka]
+              properties:
+                nilai_angka: { type: number, minimum: 0, maximum: 100, example: 88.5 }
+      responses:
+        '200':
+          description: Nilai tersimpan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      kelas_id: { type: integer }
+                      nilai_angka: { type: number }
+                      nilai_huruf: { type: string }
+                      bobot: { type: number }
+                      status: { type: string, example: DRAFT }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: ROLE_NOT_ALLOWED | OUTSIDE_ACCESS_HOURS | NOT_CLASS_OWNER | GRADE_ALREADY_FINAL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: RESOURCE_NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

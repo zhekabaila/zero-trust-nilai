@@ -1,0 +1,21 @@
+sequenceDiagram
+    autonumber
+    participant C as Klien (dosen01)
+    participant G as Gateway (PEP)
+    participant PE as Policy Engine
+    participant DB as MySQL
+    participant A as AuditService
+
+    C->>G: POST /auth/login<br/>X-Device-ID + username/password
+    G->>DB: zt_gateway: SELECT users, devices
+    Note over G: bcrypt compare + cek device terdaftar<br/>+ user aktif
+    alt device asing / tidak aktif
+        G-->>C: 403 DEVICE_NOT_REGISTERED / USER_INACTIVE
+        G->>A: catat deny (reason)
+    else sukses
+        G->>DB: INSERT refresh_tokens (hash SHA-256, expires)
+        Note over G: tanda tangan RS256 dengan private key<br/>(private key tidak pernah keluar gateway)
+        G-->>C: 200 access (10 mnt) + refresh (rotasi)
+        G->>A: catat allow LOGIN_OK
+    end
+    A->>DB: INSERT audit_logs (tepat 1 baris)

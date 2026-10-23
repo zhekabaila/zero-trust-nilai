@@ -1,0 +1,53 @@
+paths:
+  /audit:
+    get:
+      tags: [Audit]
+      summary: Audit trail (hanya admin; dibaca langsung dari DB oleh Gateway)
+      description: >-
+        Mengembalikan baris audit_logs terbaru (urut DESC). Keputusan permintaan ini
+        sendiri juga masuk audit (reason ADMIN_AUDIT_READ) sehingga tertulis sebelum
+        hasil SELECT. Request ini tidak diteruskan ke service (tanpa X-Gateway-Secret);
+        data berasal dari grant SELECT zt_gateway. Parameter salah -> 400 VALIDATION_ERROR
+        (baris audit tetap allow karena Policy Engine sudah mengizinkan sebelum validasi).
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          description: Jumlah baris terbaru (1-200, default 50)
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - in: query
+          name: decision
+          required: false
+          description: Filter hasil keputusan
+          schema: { type: string, enum: [allow, deny] }
+        - in: query
+          name: subject_id
+          required: false
+          description: Filter subjek (id user atau client_id service)
+          schema: { type: string, maxLength: 64 }
+        - $ref: '#/components/parameters/DeviceID'
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200':
+          description: Audit trail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      count: { type: integer, example: 2 }
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AuditTrailEntry'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: ROLE_NOT_ALLOWED (non-admin), SERVICE_TOKEN_ON_USER_ENDPOINT (token service), DEVICE_* (device tidak cocok)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

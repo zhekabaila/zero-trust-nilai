@@ -1,0 +1,102 @@
+openapi: 3.0.3
+info:
+  title: Sistem Nilai Zero Trust
+  description: >-
+    API Gateway sebagai PEP dengan Policy Engine in-process. Semua request
+    (kecuali /auth/*, /health, /docs) diaudit; rute tak terdaftar ditolak
+    (default deny). Layanan backend tidak dapat diakses langsung.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+tags:
+  - name: Auth
+    description: Diterbitkan & ditangani langsung oleh Gateway
+  - name: Nilai
+    description: Proxy ke Service Nilai (:3001)
+  - name: Kelas
+    description: Finalisasi nilai — Service Nilai (:3001)
+  - name: Transkrip
+    description: Proxy ke Service Transkrip (:3002)
+  - name: Audit
+    description: Audit trail — dibaca langsung oleh Gateway (admin only)
+  - name: System
+    description: Kesehatan & dokumentasi
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token RS256 dari POST /auth/login (10 menit) atau POST /auth/service (5 menit)
+  parameters:
+    DeviceID:
+      in: header
+      name: X-Device-ID
+      required: false
+      description: Wajib untuk token user; harus terdaftar atas user tsb (DEVICE_NOT_REGISTERED bila tidak)
+      schema:
+        type: string
+        example: DEV-MHS-01
+    RequestID:
+      in: header
+      name: X-Request-ID
+      required: false
+      description: Opsional; dibuat oleh gateway bila kosong, selalu dikembalikan di respons
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code:
+              type: string
+              description: Reason code Policy Engine / error code
+              example: NOT_CLASS_OWNER
+            message:
+              type: string
+            requestId:
+              type: string
+              format: uuid
+    AuditTrailEntry:
+      type: object
+      description: Satu baris audit_logs (keputusan Policy Engine / auth gateway)
+      properties:
+        id: { type: integer, format: int64, example: 42 }
+        request_id: { type: string, format: uuid }
+        occurred_at: { type: string, format: date-time, description: UTC (ISO 8601) }
+        subject_type: { type: string, enum: [user, service, anonymous] }
+        subject_id: { type: string, nullable: true, description: id user (mis. "4") atau client_id (mis. "service-nilai") }
+        role: { type: string, nullable: true, enum: [mahasiswa, dosen, admin, service] }
+        method: { type: string, example: GET }
+        endpoint: { type: string, example: /nilai/1 }
+        device_id: { type: string, nullable: true }
+        decision: { type: string, enum: [allow, deny] }
+        reason: { type: string, description: Reason code — identik dengan error.code pada respons deny, example: NOT_CLASS_OWNER }
+        ip: { type: string, nullable: true }
+  responses:
+    Unauthorized:
+      description: Token hilang / tidak valid / kedaluwarsa
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Ditolak Policy Engine (lihat reason code)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationError:
+      description: Body/param tidak lolos skema zod
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+security:
+  - bearerAuth: []

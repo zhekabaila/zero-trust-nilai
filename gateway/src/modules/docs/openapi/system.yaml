@@ -1,0 +1,15 @@
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Health check gateway (publik, tanpa token)
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }

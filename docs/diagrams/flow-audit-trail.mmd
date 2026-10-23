@@ -1,0 +1,27 @@
+sequenceDiagram
+    autonumber
+    participant AD as Admin (token user)
+    participant G as Gateway
+    participant PE as Policy Engine
+    participant DB as MySQL (audit_logs)
+
+    Note over G,DB: Semua request sebelumnya menulis 1 baris audit<br/>(allow maupun deny) lewat INSERT zt_gateway
+
+    AD->>G: GET /audit?limit=50&decision=deny<br/>Bearer + X-Device-ID
+    G->>PE: authorize('audit.list')
+    alt role bukan admin (mahasiswa/dosen)
+        PE-->>G: deny ROLE_NOT_ALLOWED
+        G->>DB: INSERT audit (deny)
+        G-->>AD: 403 ROLE_NOT_ALLOWED
+    else token service
+        PE-->>G: deny SERVICE_TOKEN_ON_USER_ENDPOINT
+        G->>DB: INSERT audit (deny)
+        G-->>AD: 403 SERVICE_TOKEN_ON_USER_ENDPOINT
+    else admin
+        PE-->>G: allow ADMIN_AUDIT_READ
+        G->>DB: INSERT audit (allow) — baris request ini sendiri
+        G->>G: validasi zod query (limit 1-200,<br/>decision enum, subject_id)
+        Note over G: error validasi ⇒ 400 VALIDATION_ERROR,<br/>baris audit tetap allow (PE sudah memutuskan)
+        G->>DB: SELECT ... ORDER BY id DESC LIMIT ?<br/>(grant SELECT khusus zt_gateway, tanpa UPDATE/DELETE)
+        G-->>AD: 200 data.items (terbaru pertama,<br/>termasuk baris /audit di posisi pertama)
+    end

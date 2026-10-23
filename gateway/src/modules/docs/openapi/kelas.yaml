@@ -1,0 +1,62 @@
+paths:
+  /kelas/{id}/finalisasi:
+    post:
+      tags: [Kelas]
+      summary: Finalisasi seluruh nilai kelas (dosen pengampu, dalam jam akses)
+      description: >-
+        Transaksi: kunci baris kelas, tolak bila ada nilai kosong (422),
+        ubah DRAFT→FINAL, lalu sinkron ke Service Transkrip lewat gateway
+        dengan token service. Idempoten & bisa di-retry (D12).
+      parameters:
+        - $ref: '#/components/parameters/DeviceID'
+        - $ref: '#/components/parameters/RequestID'
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, example: 1 }
+      responses:
+        '200':
+          description: Final & tersinkron (atau retry sinkron berhasil)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      kelas_id: { type: integer }
+                      finalized_at: { type: string, format: date-time }
+                      jumlah_nilai: { type: integer }
+                      sync_status: { type: string, example: SYNCED }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: ROLE_NOT_ALLOWED | OUTSIDE_ACCESS_HOURS | NOT_CLASS_OWNER
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: RESOURCE_NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: ALREADY_FINALIZED (sudah final & tersinkron)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: GRADES_INCOMPLETE (ada nilai kosong)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: SYNC_FAILED — sync_status=FAILED; panggil lagi untuk retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

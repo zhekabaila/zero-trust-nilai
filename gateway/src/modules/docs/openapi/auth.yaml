@@ -1,0 +1,143 @@
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login (username + password + X-Device-ID)
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceID'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string, example: mhs01 }
+                password: { type: string, example: 'Password123!' }
+      responses:
+        '200':
+          description: Access token (10 menit) + refresh token (1 hari)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token: { type: string }
+                  refresh_token: { type: string }
+                  token_type: { type: string, example: Bearer }
+                  expires_in: { type: integer, example: 600 }
+                  user:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      username: { type: string }
+                      full_name: { type: string }
+                      role: { type: string, enum: [mahasiswa, dosen, admin] }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401':
+          description: INVALID_CREDENTIALS (pesan sama untuk user tak ada / password salah)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: DEVICE_HEADER_MISSING | DEVICE_NOT_REGISTERED | USER_INACTIVE
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotasi refresh token (device harus sama dengan saat login)
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string }
+      responses:
+        '200':
+          description: Token baru; refresh token lama dicabut
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token: { type: string }
+                  refresh_token: { type: string }
+                  token_type: { type: string, example: Bearer }
+                  expires_in: { type: integer, example: 600 }
+        '401':
+          description: REFRESH_INVALID | REFRESH_EXPIRED | REFRESH_REVOKED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Device tidak cocok dengan binding refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Cabut refresh token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string }
+      responses:
+        '204': { description: Refresh token dicabut }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/service:
+    post:
+      tags: [Auth]
+      summary: Token service (typ=service, role=service, 5 menit)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [client_id, client_secret]
+              properties:
+                client_id: { type: string, example: service-nilai }
+                client_secret: { type: string }
+      responses:
+        '200':
+          description: Token service
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token: { type: string }
+                  token_type: { type: string, example: Bearer }
+                  expires_in: { type: integer, example: 300 }
+        '401':
+          description: CLIENT_INVALID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
