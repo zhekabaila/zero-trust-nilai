@@ -16,3 +16,7 @@ coverage/
 .DS_Store
 .idea/
 .vscode/
+
+docs/
+
+PLAN.md

@@ -1,140 +1,140 @@
 {
   "info": {
     "name": "zero-trust-nilai",
-    "description": "Kontrak docs/API.md + skenario docs/TESTING.md. Variabel diisi otomatis oleh request login/refresh/service; device per user ada di nama request.",
+    "description": "Kontrak docs/API.md + skenario docs/TESTING.md. Folder dikelompokkan per endpoint. Folder terakhir \"DEMO berurutan\" menjalankan skenario docs/DEMO.md secara berurutan (setiap request sudah mengisi token sendiri lewat prerequest, jalankan atas ke bawah). Variabel secret bernilai GANTI_DENGAN_... diisi manual dari .env.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    {
-      "key": "gw",
-      "value": "http://localhost:3000"
-    },
-    {
-      "key": "service_nilai",
-      "value": "http://127.0.0.1:3001"
-    },
-    {
-      "key": "service_transkrip",
-      "value": "http://127.0.0.1:3002"
-    },
-    {
-      "key": "device",
-      "value": "DEV-DOSEN-01"
-    },
-    {
-      "key": "access_token",
-      "value": ""
-    },
-    {
-      "key": "refresh_token",
-      "value": ""
-    },
-    {
-      "key": "service_token",
-      "value": ""
-    }
+    { "key": "gw", "value": "http://localhost:3000" },
+    { "key": "service_nilai", "value": "http://127.0.0.1:3001" },
+    { "key": "service_transkrip", "value": "http://127.0.0.1:3002" },
+    { "key": "device", "value": "DEV-DOSEN-01" },
+    { "key": "access_token", "value": "" },
+    { "key": "refresh_token", "value": "" },
+    { "key": "old_refresh_token", "value": "" },
+    { "key": "service_token", "value": "" }
   ],
   "item": [
     {
-      "name": "Auth (4.1)",
+      "name": "Auth — /auth/*",
+      "description": "Endpoint public (tanpa Bearer). Setelah login, access_token/refresh_token tersimpan otomatis untuk folder lain.",
       "item": [
         {
-          "name": "login dosen01 (T-AUTH-01)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Device-ID",
-                "value": "DEV-DOSEN-01"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"username\":\"dosen01\",\"password\":\"Password123!\"}"
-            },
-            "url": "{{gw}}/auth/login"
-          },
+          "name": "POST /auth/login dosen01 (T-AUTH-01)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "const b = pm.response.json();",
-                  "pm.collectionVariables.set('access_token', b.access_token);",
-                  "pm.collectionVariables.set('refresh_token', b.refresh_token);",
-                  "pm.collectionVariables.set('device', 'DEV-DOSEN-01');"
+                  "if (b.access_token) {",
+                  "  pm.collectionVariables.set('access_token', b.access_token);",
+                  "  pm.collectionVariables.set('refresh_token', b.refresh_token);",
+                  "  pm.collectionVariables.set('device', 'DEV-DOSEN-01');",
+                  "}"
                 ]
               }
             }
-          ]
-        },
-        {
-          "name": "login password salah (T-AUTH-02)",
+          ],
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Device-ID",
-                "value": "DEV-DOSEN-01"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "DEV-DOSEN-01" }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"username\":\"dosen01\",\"password\":\"salah\"}"
-            },
+            "body": { "mode": "raw", "raw": "{\"username\":\"dosen01\",\"password\":\"Password123!\"}" },
             "url": "{{gw}}/auth/login"
           }
         },
         {
-          "name": "login device asing (T-AUTH-04)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Device-ID",
-                "value": "DEV-UNKNOWN-99"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"username\":\"dosen01\",\"password\":\"Password123!\"}"
-            },
-            "url": "{{gw}}/auth/login"
-          }
-        },
-        {
-          "name": "refresh → rotasi (T-AUTH-05/06)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Device-ID",
-                "value": "{{device}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"refresh_token\":\"{{refresh_token}}\"}"
-            },
-            "url": "{{gw}}/auth/refresh"
-          },
+          "name": "POST /auth/login mhs01 (simpan token)",
           "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const b = pm.response.json();",
+                  "if (b.access_token) {",
+                  "  pm.collectionVariables.set('access_token', b.access_token);",
+                  "  pm.collectionVariables.set('refresh_token', b.refresh_token);",
+                  "  pm.collectionVariables.set('device', 'DEV-MHS-01');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "DEV-MHS-01" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"username\":\"mhs01\",\"password\":\"Password123!\"}" },
+            "url": "{{gw}}/auth/login"
+          }
+        },
+        {
+          "name": "POST /auth/login admin01 (simpan token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const b = pm.response.json();",
+                  "if (b.access_token) {",
+                  "  pm.collectionVariables.set('access_token', b.access_token);",
+                  "  pm.collectionVariables.set('refresh_token', b.refresh_token);",
+                  "  pm.collectionVariables.set('device', 'DEV-ADMIN-01');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "DEV-ADMIN-01" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"username\":\"admin01\",\"password\":\"Password123!\"}" },
+            "url": "{{gw}}/auth/login"
+          }
+        },
+        {
+          "name": "POST /auth/login password salah (T-AUTH-02)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "DEV-DOSEN-01" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"username\":\"dosen01\",\"password\":\"salah\"}" },
+            "url": "{{gw}}/auth/login"
+          }
+        },
+        {
+          "name": "POST /auth/login device asing (T-AUTH-04)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "DEV-UNKNOWN-99" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"username\":\"dosen01\",\"password\":\"Password123!\"}" },
+            "url": "{{gw}}/auth/login"
+          }
+        },
+        {
+          "name": "POST /auth/refresh → rotasi (T-AUTH-05/06)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('old_refresh_token', pm.collectionVariables.get('refresh_token'));"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -147,41 +147,44 @@
                 ]
               }
             }
-          ]
-        },
-        {
-          "name": "logout (T-AUTH-09)",
+          ],
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "{{device}}" }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"refresh_token\":\"{{refresh_token}}\"}"
-            },
-            "url": "{{gw}}/auth/logout"
+            "body": { "mode": "raw", "raw": "{\"refresh_token\":\"{{refresh_token}}\"}" },
+            "url": "{{gw}}/auth/refresh"
           }
         },
         {
-          "name": "token service (T-SVC-01)",
+          "name": "POST /auth/refresh pakai refresh lama → 401 (T-AUTH-06)",
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "{{device}}" }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"client_id\":\"service-nilai\",\"client_secret\":\"GANTI_DENGAN_SERVICE_NILAI_CLIENT_SECRET\"}"
-            },
-            "url": "{{gw}}/auth/service"
-          },
+            "body": { "mode": "raw", "raw": "{\"refresh_token\":\"{{old_refresh_token}}\"}" },
+            "url": "{{gw}}/auth/refresh",
+            "description": "Jalankan request refresh di atas dulu (menyimpan old_refresh_token)."
+          }
+        },
+        {
+          "name": "POST /auth/logout → cabut refresh (T-AUTH-09)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"refresh_token\":\"{{refresh_token}}\"}" },
+            "url": "{{gw}}/auth/logout",
+            "description": "Setelah logout, jalankan \"POST /auth/refresh\" lagi → refresh_token revoked → 401."
+          }
+        },
+        {
+          "name": "POST /auth/service → token service (T-SVC-01)",
           "event": [
             {
               "listen": "test",
@@ -191,302 +194,120 @@
                 ]
               }
             }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "Gateway secret — akses langsung service (4.1, T-GW)",
-      "item": [
-        {
-          "name": "GET service-nilai tanpa secret → 403 (T-GW-01)",
-          "request": {
-            "method": "GET",
-            "url": "{{service_nilai}}/nilai"
-          }
-        },
-        {
-          "name": "GET service-nilai secret + tanpa token → 401 (T-GW-04)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "X-Gateway-Secret",
-                "value": "GANTI_DENGAN_GATEWAY_SECRET"
-              }
-            ],
-            "url": "{{service_nilai}}/nilai"
-          }
-        },
-        {
-          "name": "GET service-transkrip tanpa secret → 403 (T-GW-02)",
-          "request": {
-            "method": "GET",
-            "url": "{{service_transkrip}}/transkrip/227006001"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Nilai & Kelas (4.2)",
-      "item": [
-        {
-          "name": "login mhs01",
+          ],
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Device-ID",
-                "value": "DEV-MHS-01"
-              }
+              { "key": "Content-Type", "value": "application/json" }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"username\":\"mhs01\",\"password\":\"Password123!\"}"
-            },
-            "url": "{{gw}}/auth/login"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const b = pm.response.json();",
-                  "pm.collectionVariables.set('access_token', b.access_token);",
-                  "pm.collectionVariables.set('device', 'DEV-MHS-01');"
-                ]
-              }
-            }
-          ]
-        },
+            "body": { "mode": "raw", "raw": "{\"client_id\":\"service-nilai\",\"client_secret\":\"GANTI_DENGAN_SERVICE_NILAI_CLIENT_SECRET\"}" },
+            "url": "{{gw}}/auth/service",
+            "description": "client_secret ada di .env (SERVICE_NILAI_CLIENT_SECRET). Token berumur 300 detik."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Nilai — /nilai",
+      "description": "Semua request butuh Bearer + X-Device-ID. Jalankan login role yang sesuai di folder Auth sebelum tiap request (tertera di nama request).",
+      "item": [
         {
-          "name": "mhs01 GET /nilai → hanya miliknya (T-NIL-01)",
+          "name": "GET /nilai sebagai mhs01 → hanya miliknya (T-NIL-01)",
           "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "header": [
-              {
-                "key": "X-Device-ID",
-                "value": "{{device}}"
-              }
-            ],
-            "url": "{{gw}}/nilai"
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "{{device}}" }],
+            "method": "GET",
+            "url": "{{gw}}/nilai",
+            "description": "Jalankan \"POST /auth/login mhs01\" dulu. Response discoping ke NIM pemilik token."
           }
         },
         {
-          "name": "mhs01 GET /nilai?nim orang lain → 403 (T-NIL-02)",
+          "name": "GET /nilai?nim=227006002 sebagai mhs01 → 403 (T-NIL-02)",
           "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "header": [
-              {
-                "key": "X-Device-ID",
-                "value": "{{device}}"
-              }
-            ],
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "{{device}}" }],
+            "method": "GET",
             "url": {
               "raw": "{{gw}}/nilai?nim=227006002",
-              "query": [
-                {
-                  "key": "nim",
-                  "value": "227006002"
-                }
-              ]
-            }
+              "query": [{ "key": "nim", "value": "227006002" }]
+            },
+            "description": "Jalankan \"POST /auth/login mhs01\" dulu. Reason: NOT_OWN_DATA."
           }
         },
         {
-          "name": "login dosen01",
+          "name": "PUT /nilai/1 sebagai dosen01 → 200 (T-NIL-06, T-CTX-04)",
           "request": {
-            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Device-ID",
-                "value": "DEV-DOSEN-01"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "{{device}}" }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"username\":\"dosen01\",\"password\":\"Password123!\"}"
-            },
-            "url": "{{gw}}/auth/login"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const b = pm.response.json();",
-                  "pm.collectionVariables.set('access_token', b.access_token);",
-                  "pm.collectionVariables.set('device', 'DEV-DOSEN-01');"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "dosen01 PUT /nilai/1 → 200 (T-NIL-06, T-CTX-04)",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Device-ID",
-                "value": "{{device}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"nilai_angka\":88}"
-            },
-            "url": "{{gw}}/nilai/1"
+            "method": "PUT",
+            "body": { "mode": "raw", "raw": "{\"nilai_angka\":88}" },
+            "url": "{{gw}}/nilai/1",
+            "description": "Jalankan \"POST /auth/login dosen01\" dulu. Kelas 1 milik dosen01, status DRAFT."
           }
         },
         {
-          "name": "dosen01 PUT /nilai/4 kelas dosen02 → 403 (T-NIL-05)",
+          "name": "PUT /nilai/4 sebagai dosen01 → 403 (T-NIL-05)",
           "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            },
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Device-ID",
-                "value": "{{device}}"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "{{device}}" }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"nilai_angka\":88}"
-            },
-            "url": "{{gw}}/nilai/4"
+            "method": "PUT",
+            "body": { "mode": "raw", "raw": "{\"nilai_angka\":88}" },
+            "url": "{{gw}}/nilai/4",
+            "description": "Jalankan \"POST /auth/login dosen01\" dulu. Kelas dari nilai 4 milik dosen02 → NOT_CLASS_OWNER."
           }
         },
         {
-          "name": "dosen01 POST /kelas/1/finalisasi (T-KLS-01)",
+          "name": "PUT /nilai/1 setelah finalisasi → 403 (T-NIL-07)",
           "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            },
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
             "header": [
-              {
-                "key": "X-Device-ID",
-                "value": "{{device}}"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "{{device}}" }
             ],
-            "method": "POST",
-            "url": "{{gw}}/kelas/1/finalisasi"
-          }
-        },
-        {
-          "name": "dosen01 PUT /nilai/1 setelah final → 403 (T-NIL-07)",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Device-ID",
-                "value": "{{device}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"nilai_angka\":90}"
-            },
-            "url": "{{gw}}/nilai/1"
+            "method": "PUT",
+            "body": { "mode": "raw", "raw": "{\"nilai_angka\":90}" },
+            "url": "{{gw}}/nilai/1",
+            "description": "Jalankan \"POST /kelas/1/finalisasi\" dulu. Reason: GRADE_ALREADY_FINAL (guard atomik SQL)."
           }
         }
       ]
     },
     {
-      "name": "Transkrip (4.2)",
+      "name": "Kelas — /kelas",
       "item": [
         {
-          "name": "admin01 GET /transkrip/:nim (T-TRN-02)",
+          "name": "POST /kelas/1/finalisasi sebagai dosen01 → 200 (T-KLS-01)",
           "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "header": [
-              {
-                "key": "X-Device-ID",
-                "value": "DEV-ADMIN-01"
-              }
-            ],
-            "url": "{{gw}}/transkrip/227006001"
-          },
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "{{device}}" }],
+            "method": "POST",
+            "url": "{{gw}}/kelas/1/finalisasi",
+            "description": "Jalankan \"POST /auth/login dosen01\" dulu. Memicu token service internal → /transkrip/sinkron → sync_status SYNCED."
+          }
+        },
+        {
+          "name": "POST /kelas/1/finalisasi sebagai dosen02 → 403 (T-KLS-02)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "DEV-DOSEN-02" }],
+            "method": "POST",
+            "url": "{{gw}}/kelas/1/finalisasi",
+            "description": "Butuh token dosen02: jalankan lewat folder Demo (langkah 18 memakai dosen01) atau tambahkan request login dosen02 sendiri. Reason: NOT_CLASS_OWNER."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Transkrip — /transkrip",
+      "item": [
+        {
+          "name": "GET /transkrip/227006001 sebagai admin01 → 200 (T-TRN-02)",
           "event": [
             {
               "listen": "prerequest",
@@ -503,109 +324,223 @@
                 ]
               }
             }
-          ]
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "DEV-ADMIN-01" }],
+            "method": "GET",
+            "url": "{{gw}}/transkrip/227006001"
+          }
         },
         {
-          "name": "token user POST /transkrip/sinkron → 403 (T-TRN-06)",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Device-ID",
-                "value": "{{device}}"
+          "name": "GET /transkrip/227006001 sebagai mhs01 → 200 (T-TRN-01)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('gw') + '/auth/login',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-MHS-01' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ username: 'mhs01', password: 'Password123!' }) }",
+                  "}, (err, res) => {",
+                  "  if (!err) pm.collectionVariables.set('access_token', res.json().access_token);",
+                  "});"
+                ]
               }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "DEV-MHS-01" }],
+            "method": "GET",
+            "url": "{{gw}}/transkrip/227006001",
+            "description": "Mhs hanya boleh NIM sendiri → OWN_DATA."
+          }
+        },
+        {
+          "name": "GET /transkrip/227006002 sebagai mhs01 → 403 (T-TRN-03)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('gw') + '/auth/login',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-MHS-01' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ username: 'mhs01', password: 'Password123!' }) }",
+                  "}, (err, res) => {",
+                  "  if (!err) pm.collectionVariables.set('access_token', res.json().access_token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "DEV-MHS-01" }],
+            "method": "GET",
+            "url": "{{gw}}/transkrip/227006002",
+            "description": "Reason: NOT_OWN_DATA."
+          }
+        },
+        {
+          "name": "POST /transkrip/sinkron dengan token user → 403 (T-TRN-06)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "{{device}}" }
             ],
+            "method": "POST",
             "body": {
               "mode": "raw",
               "raw": "{\"kelas_id\":1,\"kode_mk\":\"KP70065004\",\"nama_mk\":\"Keamanan Informasi\",\"sks\":3,\"semester\":\"Ganjil\",\"tahun_ajaran\":\"2026/2027\",\"items\":[]}"
             },
-            "url": "{{gw}}/transkrip/sinkron"
+            "url": "{{gw}}/transkrip/sinkron",
+            "description": "Endpoint khusus token service. Reason: USER_TOKEN_ON_SERVICE_ENDPOINT."
           }
         },
         {
-          "name": "token service POST /transkrip/sinkron → 200 (T-TRN-07)",
+          "name": "POST /transkrip/sinkron dengan token service → 200 (T-TRN-07)",
           "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{service_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{service_token}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "method": "POST",
             "body": {
               "mode": "raw",
               "raw": "{\"kelas_id\":999,\"kode_mk\":\"XX999\",\"nama_mk\":\"Demo Sinkron\",\"sks\":2,\"semester\":\"Ganjil\",\"tahun_ajaran\":\"2026/2027\",\"items\":[{\"nim\":\"227006001\",\"nilai_angka\":85,\"nilai_huruf\":\"A\",\"bobot\":4}]}"
             },
-            "url": "{{gw}}/transkrip/sinkron"
+            "url": "{{gw}}/transkrip/sinkron",
+            "description": "Jalankan \"POST /auth/service\" dulu (isi client_secret dari .env). kelas_id 999 = data uji; hapus via phpMyAdmin bila perlu."
           }
         }
       ]
     },
     {
-      "name": "Konteks & default deny (4.3)",
+      "name": "Audit — /audit (D18)",
       "item": [
         {
-          "name": "tanpa X-Device-ID → 403 (T-CTX-01)",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "url": "{{gw}}/nilai"
-          }
-        },
-        {
-          "name": "route tak terdaftar → 403 ROUTE_NOT_REGISTERED (T-GW-06)",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "header": [
-              {
-                "key": "X-Device-ID",
-                "value": "{{device}}"
+          "name": "GET /audit sebagai admin01 → 200 (T-AUD-04)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('gw') + '/auth/login',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-ADMIN-01' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ username: 'admin01', password: 'Password123!' }) }",
+                  "}, (err, res) => {",
+                  "  if (!err) pm.collectionVariables.set('access_token', res.json().access_token);",
+                  "});"
+                ]
               }
-            ],
-            "url": "{{gw}}/foo"
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "DEV-ADMIN-01" }],
+            "method": "GET",
+            "url": {
+              "raw": "{{gw}}/audit?limit=10",
+              "query": [{ "key": "limit", "value": "10" }]
+            },
+            "description": "Item pertama = request /audit itu sendiri (allow/ADMIN_AUDIT_READ)."
           }
         },
         {
-          "name": "GET /health (publik)",
+          "name": "GET /audit?decision=deny&subject_id=2 sebagai admin → 200 (T-AUD-07)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('gw') + '/auth/login',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-ADMIN-01' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ username: 'admin01', password: 'Password123!' }) }",
+                  "}, (err, res) => {",
+                  "  if (!err) pm.collectionVariables.set('access_token', res.json().access_token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "DEV-ADMIN-01" }],
+            "method": "GET",
+            "url": {
+              "raw": "{{gw}}/audit?decision=deny&subject_id=2&limit=5",
+              "query": [
+                { "key": "decision", "value": "deny" },
+                { "key": "subject_id", "value": "2" },
+                { "key": "limit", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /audit?limit=0 sebagai admin → 400 (T-AUD-07)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('gw') + '/auth/login',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-ADMIN-01' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ username: 'admin01', password: 'Password123!' }) }",
+                  "}, (err, res) => {",
+                  "  if (!err) pm.collectionVariables.set('access_token', res.json().access_token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "DEV-ADMIN-01" }],
+            "method": "GET",
+            "url": {
+              "raw": "{{gw}}/audit?limit=0",
+              "query": [{ "key": "limit", "value": "0" }]
+            },
+            "description": "Validasi zod menolak limit < 1 → 400 VALIDATION_ERROR; keputusan PE tetap ter-audit."
+          }
+        },
+        {
+          "name": "GET /audit sebagai dosen01 → 403 (T-AUD-05)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "{{device}}" }],
+            "method": "GET",
+            "url": "{{gw}}/audit",
+            "description": "Jalankan \"POST /auth/login dosen01\" dulu. Reason: ROLE_NOT_ALLOWED."
+          }
+        },
+        {
+          "name": "GET /audit dengan token service → 403 (T-AUD-06)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{service_token}}", "type": "string" }] },
+            "method": "GET",
+            "url": "{{gw}}/audit",
+            "description": "Jalankan \"POST /auth/service\" dulu. Reason: SERVICE_TOKEN_ON_USER_ENDPOINT."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health — /health",
+      "item": [
+        {
+          "name": "GET /health (publik, tanpa token)",
           "request": {
             "method": "GET",
             "url": "{{gw}}/health"
@@ -614,10 +549,422 @@
       ]
     },
     {
-      "name": "Audit trail (D18)",
+      "name": "Akses langsung service (tanpa gateway)",
+      "description": "Bukti defense-in-depth: service menolak walau masih di dalam Docker network. Isi X-Gateway-Secret dari .env (GATEWAY_SECRET) untuk menguji.",
       "item": [
         {
-          "name": "admin GET /audit → 200 (T-AUD-04)",
+          "name": "GET :3001/nilai tanpa secret → 403 (T-GW-01)",
+          "request": {
+            "method": "GET",
+            "url": "{{service_nilai}}/nilai"
+          }
+        },
+        {
+          "name": "GET :3001/nilai dengan secret, tanpa token → 401 (T-GW-04)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Gateway-Secret", "value": "GANTI_DENGAN_GATEWAY_SECRET" }],
+            "url": "{{service_nilai}}/nilai"
+          }
+        },
+        {
+          "name": "GET :3002/transkrip/:nim tanpa secret → 403 (T-GW-02)",
+          "request": {
+            "method": "GET",
+            "url": "{{service_transkrip}}/transkrip/227006001"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Default deny — rute tak terdaftar",
+      "item": [
+        {
+          "name": "GET /foo → 403 ROUTE_NOT_REGISTERED (T-GW-06)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "{{device}}" }],
+            "method": "GET",
+            "url": "{{gw}}/foo",
+            "description": "Token + device valid sekalipun, rute yang tidak terdaftar di Tabel 3 selalu ditolak."
+          }
+        }
+      ]
+    },
+    {
+      "name": "DEMO berurutan (docs/DEMO.md)",
+      "description": "Jalankan atas ke bawah (Postman Collection Runner juga bisa). Tiap request login sendiri lewat prerequest sehingga tidak saling menimpa variabel. Data awal = seed baru (docker compose down -v && up -d --build). Request 09–11 perlu mengisi X-Gateway-Secret / client_secret dari .env. Langkah 24 butuh restart gateway dengan jendela jam akses sempit (lihat deskripsinya).",
+      "item": [
+        {
+          "name": "01 (4.1) login dosen01 → simpan access & refresh",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const b = pm.response.json();",
+                  "pm.test('200 + token issued', () => { pm.expect(b.access_token).to.be.a('string'); });",
+                  "pm.collectionVariables.set('access_token', b.access_token);",
+                  "pm.collectionVariables.set('refresh_token', b.refresh_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "DEV-DOSEN-01" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"username\":\"dosen01\",\"password\":\"Password123!\"}" },
+            "url": "{{gw}}/auth/login",
+            "description": "Sambil bicara: decode JWT di https://jwt.io atau node -e — klaim sub, role, typ, iss, exp (10 menit). Tunjukkan auth.service.ts + token.service.ts."
+          }
+        },
+        {
+          "name": "02 (4.1) refresh dosen01 → token baru (rotasi)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('old_refresh_token', pm.collectionVariables.get('refresh_token'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const b = pm.response.json();",
+                  "if (b.access_token) {",
+                  "  pm.collectionVariables.set('access_token', b.access_token);",
+                  "  pm.collectionVariables.set('refresh_token', b.refresh_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "DEV-DOSEN-01" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"refresh_token\":\"{{refresh_token}}\"}" },
+            "url": "{{gw}}/auth/refresh",
+            "description": "Refresh lama disimpan ke old_refresh_token untuk langkah 03."
+          }
+        },
+        {
+          "name": "03 (4.1) refresh LAMA dipakai lagi → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('401 refresh dirotasi', () => pm.expect(pm.response.code).to.eql(401));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "DEV-DOSEN-01" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"refresh_token\":\"{{old_refresh_token}}\"}" },
+            "url": "{{gw}}/auth/refresh",
+            "description": "Bukti rotasi satu-kali-pakai. Tunjukkan refresh-token.repository.ts + kolom revoked_at di phpMyAdmin."
+          }
+        },
+        {
+          "name": "04 (4.1) logout → cabut refresh",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"refresh_token\":\"{{refresh_token}}\"}" },
+            "url": "{{gw}}/auth/logout"
+          }
+        },
+        {
+          "name": "05 (4.1) refresh setelah logout → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('401 sudah dicabut', () => pm.expect(pm.response.code).to.eql(401));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "DEV-DOSEN-01" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"refresh_token\":\"{{refresh_token}}\"}" },
+            "url": "{{gw}}/auth/refresh"
+          }
+        },
+        {
+          "name": "06 (4.1) login dosen01 lagi (untuk segmen berikutnya)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const b = pm.response.json();",
+                  "if (b.access_token) pm.collectionVariables.set('access_token', b.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "DEV-DOSEN-01" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"username\":\"dosen01\",\"password\":\"Password123!\"}" },
+            "url": "{{gw}}/auth/login"
+          }
+        },
+        {
+          "name": "07 (4.1) token service via /auth/service",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.collectionVariables.set('service_token', pm.response.json().access_token || '');"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"client_id\":\"service-nilai\",\"client_secret\":\"GANTI_DENGAN_SERVICE_NILAI_CLIENT_SECRET\"}" },
+            "url": "{{gw}}/auth/service",
+            "description": "Isi client_secret dari .env SEBELUM rekaman. Decode: typ=service, role=service, exp 300 detik."
+          }
+        },
+        {
+          "name": "08 (4.1) GET :3001/nilai tanpa secret → 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('403 tanpa secret', () => pm.expect(pm.response.code).to.eql(403));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{service_nilai}}/nilai",
+            "description": "Tunjukkan proxy.factory.ts (secret klien dihapus, secret asli dipasang) + verify-gateway-secret.ts."
+          }
+        },
+        {
+          "name": "09 (4.1) GET :3001/nilai dengan secret, tanpa token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('401 tanpa token', () => pm.expect(pm.response.code).to.eql(401));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Gateway-Secret", "value": "GANTI_DENGAN_GATEWAY_SECRET" }],
+            "url": "{{service_nilai}}/nilai",
+            "description": "Isi dari .env (GATEWAY_SECRET). Dua kunci wajib: secret DAN token — verify-token.ts."
+          }
+        },
+        {
+          "name": "10 (4.1) GET :3002/transkrip tanpa secret → 403",
+          "request": {
+            "method": "GET",
+            "url": "{{service_transkrip}}/transkrip/227006001"
+          }
+        },
+        {
+          "name": "11 (4.2) mhs01 GET /nilai → hanya nilainya",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('gw') + '/auth/login',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-MHS-01' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ username: 'mhs01', password: 'Password123!' }) }",
+                  "}, (err, res) => { if (!err) pm.collectionVariables.set('access_token', res.json().access_token); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "DEV-MHS-01" }],
+            "method": "GET",
+            "url": "{{gw}}/nilai",
+            "description": "Scoping di nilai.repository.ts — NIM diambil dari DB, bukan dari token."
+          }
+        },
+        {
+          "name": "12 (4.2) mhs01 GET /nilai?nim=227006002 → 403 NOT_OWN_DATA",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('gw') + '/auth/login',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-MHS-01' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ username: 'mhs01', password: 'Password123!' }) }",
+                  "}, (err, res) => { if (!err) pm.collectionVariables.set('access_token', res.json().access_token); });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('403 NOT_OWN_DATA', () => {",
+                  "  pm.expect(pm.response.code).to.eql(403);",
+                  "  pm.expect(pm.response.json().error.message).to.include('NOT_OWN_DATA');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "DEV-MHS-01" }],
+            "method": "GET",
+            "url": { "raw": "{{gw}}/nilai?nim=227006002", "query": [{ "key": "nim", "value": "227006002" }] }
+          }
+        },
+        {
+          "name": "13 (4.2) dosen01 PUT /nilai/1 → 200 (kelas sendiri)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('gw') + '/auth/login',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-DOSEN-01' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ username: 'dosen01', password: 'Password123!' }) }",
+                  "}, (err, res) => { if (!err) pm.collectionVariables.set('access_token', res.json().access_token); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "DEV-DOSEN-01" }
+            ],
+            "method": "PUT",
+            "body": { "mode": "raw", "raw": "{\"nilai_angka\":88}" },
+            "url": "{{gw}}/nilai/1"
+          }
+        },
+        {
+          "name": "14 (4.2) dosen01 PUT /nilai/4 → 403 NOT_CLASS_OWNER",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('gw') + '/auth/login',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-DOSEN-01' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ username: 'dosen01', password: 'Password123!' }) }",
+                  "}, (err, res) => { if (!err) pm.collectionVariables.set('access_token', res.json().access_token); });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('403 NOT_CLASS_OWNER', () => {",
+                  "  pm.expect(pm.response.code).to.eql(403);",
+                  "  pm.expect(pm.response.json().error.message).to.include('NOT_CLASS_OWNER');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "DEV-DOSEN-01" }
+            ],
+            "method": "PUT",
+            "body": { "mode": "raw", "raw": "{\"nilai_angka\":88}" },
+            "url": "{{gw}}/nilai/4",
+            "description": "Tunjukkan baris keputusan di nilai.rules.ts (dosen_id === subject.id dari DB)."
+          }
+        },
+        {
+          "name": "15 (4.2) mhs01 GET /transkrip/227006001 → 200 (milik sendiri)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('gw') + '/auth/login',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-MHS-01' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ username: 'mhs01', password: 'Password123!' }) }",
+                  "}, (err, res) => { if (!err) pm.collectionVariables.set('access_token', res.json().access_token); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "DEV-MHS-01" }],
+            "method": "GET",
+            "url": "{{gw}}/transkrip/227006001"
+          }
+        },
+        {
+          "name": "16 (4.2) mhs01 GET /transkrip/227006002 → 403 NOT_OWN_DATA",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('gw') + '/auth/login',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-MHS-01' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ username: 'mhs01', password: 'Password123!' }) }",
+                  "}, (err, res) => { if (!err) pm.collectionVariables.set('access_token', res.json().access_token); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "DEV-MHS-01" }],
+            "method": "GET",
+            "url": "{{gw}}/transkrip/227006002"
+          }
+        },
+        {
+          "name": "17 (4.2) admin01 GET /transkrip/227006002 → 200 (ADMIN_ALL)",
           "event": [
             {
               "listen": "prerequest",
@@ -628,45 +975,45 @@
                   "  method: 'POST',",
                   "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-ADMIN-01' },",
                   "  body: { mode: 'raw', raw: JSON.stringify({ username: 'admin01', password: 'Password123!' }) }",
-                  "}, (err, res) => {",
-                  "  if (!err) pm.collectionVariables.set('access_token', res.json().access_token);",
-                  "});"
+                  "}, (err, res) => { if (!err) pm.collectionVariables.set('access_token', res.json().access_token); });"
                 ]
               }
             }
           ],
           "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "header": [
-              {
-                "key": "X-Device-ID",
-                "value": "DEV-ADMIN-01"
-              }
-            ],
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "DEV-ADMIN-01" }],
             "method": "GET",
-            "url": {
-              "raw": "{{gw}}/audit?limit=10",
-              "query": [
-                {
-                  "key": "limit",
-                  "value": "10"
-                }
-              ]
-            },
-            "description": "Item pertama = request /audit itu sendiri (allow/ADMIN_AUDIT_READ)"
+            "url": "{{gw}}/transkrip/227006002"
           }
         },
         {
-          "name": "admin filter decision=deny subject=2 (T-AUD-07)",
+          "name": "18 (4.2) dosen01 POST /kelas/1/finalisasi → SYNCED",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('gw') + '/auth/login',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-DOSEN-01' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ username: 'dosen01', password: 'Password123!' }) }",
+                  "}, (err, res) => { if (!err) pm.collectionVariables.set('access_token', res.json().access_token); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "DEV-DOSEN-01" }],
+            "method": "POST",
+            "url": "{{gw}}/kelas/1/finalisasi",
+            "description": "Inti segmen: service diam-diam ambil token service (service-token.provider.ts) → POST /transkrip/sinkron via gateway → sync_status SYNCED. Cek di phpMyAdmin + log gateway."
+          }
+        },
+        {
+          "name": "19 (4.2) admin01 GET /transkrip/227006001 → hasil sync muncul",
           "event": [
             {
               "listen": "prerequest",
@@ -677,52 +1024,21 @@
                   "  method: 'POST',",
                   "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-ADMIN-01' },",
                   "  body: { mode: 'raw', raw: JSON.stringify({ username: 'admin01', password: 'Password123!' }) }",
-                  "}, (err, res) => {",
-                  "  if (!err) pm.collectionVariables.set('access_token', res.json().access_token);",
-                  "});"
+                  "}, (err, res) => { if (!err) pm.collectionVariables.set('access_token', res.json().access_token); });"
                 ]
               }
             }
           ],
           "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "header": [
-              {
-                "key": "X-Device-ID",
-                "value": "DEV-ADMIN-01"
-              }
-            ],
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "DEV-ADMIN-01" }],
             "method": "GET",
-            "url": {
-              "raw": "{{gw}}/audit?decision=deny&subject_id=2&limit=5",
-              "query": [
-                {
-                  "key": "decision",
-                  "value": "deny"
-                },
-                {
-                  "key": "subject_id",
-                  "value": "2"
-                },
-                {
-                  "key": "limit",
-                  "value": "5"
-                }
-              ]
-            }
+            "url": "{{gw}}/transkrip/227006001",
+            "description": "Baris nilai kelas 1 sekarang ada di transkrip (hasil sinkronisasi finalisasi)."
           }
         },
         {
-          "name": "admin limit=0 → 400 (T-AUD-07)",
+          "name": "20 (4.2) user token POST /transkrip/sinkron → 403",
           "event": [
             {
               "listen": "prerequest",
@@ -733,81 +1049,245 @@
                   "  method: 'POST',",
                   "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-ADMIN-01' },",
                   "  body: { mode: 'raw', raw: JSON.stringify({ username: 'admin01', password: 'Password123!' }) }",
-                  "}, (err, res) => {",
-                  "  if (!err) pm.collectionVariables.set('access_token', res.json().access_token);",
+                  "}, (err, res) => { if (!err) pm.collectionVariables.set('access_token', res.json().access_token); });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('403 USER_TOKEN_ON_SERVICE_ENDPOINT', () => {",
+                  "  pm.expect(pm.response.code).to.eql(403);",
+                  "  pm.expect(pm.response.json().error.message).to.include('USER_TOKEN_ON_SERVICE_ENDPOINT');",
                   "});"
                 ]
               }
             }
           ],
           "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            },
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
             "header": [
-              {
-                "key": "X-Device-ID",
-                "value": "DEV-ADMIN-01"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "DEV-ADMIN-01" }
             ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"kelas_id\":1,\"kode_mk\":\"KP70065004\",\"nama_mk\":\"Keamanan Informasi\",\"sks\":3,\"semester\":\"Ganjil\",\"tahun_ajaran\":\"2026/2027\",\"items\":[]}"
+            },
+            "url": "{{gw}}/transkrip/sinkron"
+          }
+        },
+        {
+          "name": "21 (4.2) service token POST /transkrip/sinkron → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('200 sinkron via token service', () => pm.expect(pm.response.code).to.eql(200));"]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{service_token}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"kelas_id\":999,\"kode_mk\":\"XX999\",\"nama_mk\":\"Demo Sinkron\",\"sks\":2,\"semester\":\"Ganjil\",\"tahun_ajaran\":\"2026/2027\",\"items\":[{\"nim\":\"227006001\",\"nilai_angka\":85,\"nilai_huruf\":\"A\",\"bobot\":4}]}"
+            },
+            "url": "{{gw}}/transkrip/sinkron",
+            "description": "Pakai service_token dari langkah 07. Kalau sudah kedaluwarsa (300 dtk), ulangi langkah 07. kelas_id 999 = data uji; hapus via phpMyAdmin bila perlu."
+          }
+        },
+        {
+          "name": "22 (4.2) dosen01 PUT /nilai/1 setelah final → 403 GRADE_ALREADY_FINAL",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('gw') + '/auth/login',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-DOSEN-01' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ username: 'dosen01', password: 'Password123!' }) }",
+                  "}, (err, res) => { if (!err) pm.collectionVariables.set('access_token', res.json().access_token); });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('403 GRADE_ALREADY_FINAL', () => {",
+                  "  pm.expect(pm.response.code).to.eql(403);",
+                  "  pm.expect(pm.response.json().error.message).to.include('GRADE_ALREADY_FINAL');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "DEV-DOSEN-01" }
+            ],
+            "method": "PUT",
+            "body": { "mode": "raw", "raw": "{\"nilai_angka\":90}" },
+            "url": "{{gw}}/nilai/1",
+            "description": "Guard atomik SQL (D11): UPDATE ... AND status='DRAFT' AND dosen_id=? — tunjukkan nilai.repository.ts."
+          }
+        },
+        {
+          "name": "23 (4.3) device asing DEV-UNKNOWN-99 → 403",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('gw') + '/auth/login',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-DOSEN-01' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ username: 'dosen01', password: 'Password123!' }) }",
+                  "}, (err, res) => { if (!err) pm.collectionVariables.set('access_token', res.json().access_token); });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('403 DEVICE_NOT_REGISTERED', () => {",
+                  "  pm.expect(pm.response.code).to.eql(403);",
+                  "  pm.expect(pm.response.json().error.message).to.include('DEVICE_NOT_REGISTERED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "DEV-UNKNOWN-99" }],
+            "method": "GET",
+            "url": "{{gw}}/nilai",
+            "description": "Token valid + device terdaftar milik orang lain / tidak terdaftar → device.rule.ts."
+          }
+        },
+        {
+          "name": "24 (4.3) PUT /nilai/5 di luar jam akses → 403",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('gw') + '/auth/login',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-DOSEN-02' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ username: 'dosen02', password: 'Password123!' }) }",
+                  "}, (err, res) => { if (!err) pm.collectionVariables.set('access_token', res.json().access_token); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Device-ID", "value": "DEV-DOSEN-02" }
+            ],
+            "method": "PUT",
+            "body": { "mode": "raw", "raw": "{\"nilai_angka\":77}" },
+            "url": "{{gw}}/nilai/5",
+            "description": "Sebelum request ini, recreate gateway dengan jendela sempit: ACCESS_HOURS_START=00:00 ACCESS_HOURS_END=00:01 docker compose up -d --no-build gateway → OUTSIDE_ACCESS_HOURS. Restore: docker compose up -d --no-build gateway. nilai 5 (kelas 2, dosen02) sengaja masih DRAFT."
+          }
+        },
+        {
+          "name": "25 (4.4) admin01 GET /audit?limit=8 → baris allow & deny",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('gw') + '/auth/login',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-ADMIN-01' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ username: 'admin01', password: 'Password123!' }) }",
+                  "}, (err, res) => { if (!err) pm.collectionVariables.set('access_token', res.json().access_token); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "DEV-ADMIN-01" }],
             "method": "GET",
             "url": {
-              "raw": "{{gw}}/audit?limit=0",
-              "query": [
-                {
-                  "key": "limit",
-                  "value": "0"
-                }
-              ]
-            }
+              "raw": "{{gw}}/audit?limit=8",
+              "query": [{ "key": "limit", "value": "8" }]
+            },
+            "description": "Item pertama = request /audit sendiri. Baris deny dari langkah 12/14/20/23/24 terlihat dengan reason-nya. Lanjut tunjukkan SELECT langsung di phpMyAdmin."
           }
         },
         {
-          "name": "dosen GET /audit → 403 ROLE_NOT_ALLOWED (T-AUD-05)",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{access_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "header": [
-              {
-                "key": "X-Device-ID",
-                "value": "{{device}}"
+          "name": "26 (4.4) dosen01 GET /audit → 403 ROLE_NOT_ALLOWED",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('gw') + '/auth/login',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-DOSEN-01' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ username: 'dosen01', password: 'Password123!' }) }",
+                  "}, (err, res) => { if (!err) pm.collectionVariables.set('access_token', res.json().access_token); });"
+                ]
               }
-            ],
-            "method": "GET",
-            "url": "{{gw}}/audit",
-            "description": "Jalankan \"login dosen01\" dulu, lalu request ini"
-          }
-        },
-        {
-          "name": "token service GET /audit → 403 (T-AUD-06)",
+            }
+          ],
           "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{service_token}}",
-                  "type": "string"
-                }
-              ]
-            },
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "DEV-DOSEN-01" }],
             "method": "GET",
             "url": "{{gw}}/audit"
+          }
+        },
+        {
+          "name": "27 (penutup) GET /health → 200 publik",
+          "request": {
+            "method": "GET",
+            "url": "{{gw}}/health"
+          }
+        },
+        {
+          "name": "28 (penutup) GET /foo → 403 ROUTE_NOT_REGISTERED",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('gw') + '/auth/login',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', 'X-Device-ID': 'DEV-DOSEN-01' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ username: 'dosen01', password: 'Password123!' }) }",
+                  "}, (err, res) => { if (!err) pm.collectionVariables.set('access_token', res.json().access_token); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "header": [{ "key": "X-Device-ID", "value": "DEV-DOSEN-01" }],
+            "method": "GET",
+            "url": "{{gw}}/foo",
+            "description": "Default deny: rute di luar Tabel 3 selalu 403, walaupun token & device valid."
           }
         }
       ]
