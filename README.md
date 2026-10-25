@@ -1,9 +1,26 @@
 # Sistem Nilai — Zero Trust Security
 
-Tugas Praktikum Individu · Keamanan Informasi (KP70065004) · Informatika Universitas Siliwangi.
-API Gateway (PEP) + Policy Engine, Service Nilai, Service Transkrip, MySQL, audit log — semuanya via Docker Compose.
+Sistem manajemen nilai akademik yang dibangun dengan pendekatan **Zero Trust** (NIST SP 800-207): setiap request diverifikasi penuh pada setiap hop — tidak ada kepercayaan berdasarkan asal jaringan, identitas service, maupun posisi di dalam sistem. Semua komponen berjalan dalam satu `docker compose up`.
 
-Implementasi selesai: matriks uji `docs/TESTING.md` lulus semua (71 unit + 43 integrasi). Skenario demo video ada di `docs/DEMO.md`; jalankan otomatis lewat `scripts/demo.sh` atau manual via Postman (`postman/collection.json`) / Swagger UI.
+## Komponen
+
+| Komponen | Peran |
+|---|---|
+| **API Gateway** (:3000) | Satu-satunya pintu masuk. Policy Enforcement Point (PEP): verifikasi JWT RS256 (`iss`, `typ`, `exp`), Policy Engine *default deny* per tabel rute, audit setiap keputusan, proxy ke backend dengan secret internal. |
+| **Service Nilai** (:3001) | CRUD nilai & finalisasi kelas. Menolak request tanpa `X-Gateway-Secret` **dan** memverifikasi ulang token — backend tidak pernah percaya mentah-mentah. |
+| **Service Transkrip** (:3002) | Transkrip & sinkronisasi hasil finalisasi. Pola verifikasi sama; satu-satunya penulis adalah jalur service-to-service ber-token khusus. |
+| **MySQL 8.4** | User & grant terpisah per komponen (least privilege); guard kepemilikan ditegakkan atomik di SQL. |
+| **Audit log** | Satu baris per request (allow & deny, dengan reason code), append-only — tidak ada UPDATE/DELETE. |
+
+## Prinsip yang ditegakkan
+
+- **Default deny** — rute yang tidak terdaftar di tabel kebijakan selalu ditolak (`ROUTE_NOT_REGISTERED`), termasuk endpoint health service.
+- **Keputusan dari atribut, bukan dari token** — kepemilikan kelas, NIM, dan role dibaca ulang dari DB saat evaluasi kebijakan.
+- **Token bertipe** — token user (`typ=access`) dan token service (`typ=service`, umur 5 menit) tidak saling menggantikan; token service hanya berlaku pada satu endpoint sinkronisasi.
+- **Device binding** — setiap request wajib menyertakan `X-Device-ID` yang terdaftar untuk user tersebut.
+- **Jam akses** — ubah/finalisasi nilai hanya pada jendela waktu yang dikonfigurasi.
+- **Defense in depth** — gateway memutuskan, service memverifikasi ulang, dan SQL meng-guard atomik (`UPDATE ... AND status='DRAFT' AND dosen_id=?`).
+- **Audit lengkap** — termasuk kegagalan 401/403; admin dapat membaca trail lewat `GET /audit`, dan trail tidak bisa dimanipulasi oleh user DB mana pun selain append.
 
 ## Menjalankan
 Prasyarat: Docker + Docker Compose.
@@ -14,7 +31,7 @@ docker compose up -d --build
 docker compose ps           # semua healthy
 ```
 - Gateway: <http://localhost:3000> · Swagger UI: <http://localhost:3000/docs>
-- phpMyAdmin (inspeksi DB, localhost-only): <http://127.0.0.1:8081> — login `root` + `MYSQL_ROOT_PASSWORD` dari `.env`, atau login `zt_nilai`/`zt_transkrip` untuk melihat pembatasan grant (T-DB-01/02). Alat lab di luar jalur PEP; hapus di produksi.
+- phpMyAdmin (inspeksi DB, localhost-only): <http://127.0.0.1:8081> — login `root` + `MYSQL_ROOT_PASSWORD` dari `.env`, atau login `zt_nilai`/`zt_transkrip` untuk melihat pembatasan grant antar user. Alat lab; hapus di produksi.
 - Reset data: `docker compose down -v && docker compose up -d --build`
 - Log: `docker compose logs -f gateway`
 
@@ -23,14 +40,16 @@ docker compose ps           # semua healthy
 cd gateway && npm test              # unit Policy Engine, jam akses, token
 cd service-nilai && npm test        # unit grading, service, finalisasi, provider token
 cd service-transkrip && npm test    # unit IPK
-cd gateway && npm run test:integration   # 43 uji end-to-end ke stack Docker (butuh stack seed baru)
+cd gateway && npm run test:integration   # uji end-to-end ke stack Docker (butuh stack seed baru)
 ```
-Sebelum integrasi/demo yang memfinalisasi kelas, reset seed: `docker compose down -v && docker compose up -d --build`.
+Sebelum integrasi yang memfinalisasi kelas, reset seed: `docker compose down -v && docker compose up -d --build`.
+
+Skenario demo siap-jalan ada di `scripts/demo.sh`; koleksi Postman di `postman/collection.json` (folder terakhir berisi urutan demo lengkap).
 
 ## Akun seed (password semua user: `Password123!`)
 | Username | Role | Device ID terdaftar | Keterangan |
 |---|---|---|---|
-| `admin01` | admin | `DEV-ADMIN-01` | |
+| `admin01` | admin | `DEV-ADMIN-01` | baca semua transkrip + audit trail |
 | `dosen01` | dosen | `DEV-DOSEN-01` | mengampu kelas 1 (Keamanan Informasi) |
 | `dosen02` | dosen | `DEV-DOSEN-02` | mengampu kelas 2 (Pemrograman Web) |
 | `mhs01` | mahasiswa | `DEV-MHS-01` | NIM 227006001 |
@@ -80,8 +99,8 @@ curl -i 127.0.0.1:3001/nilai
 ## Jam akses
 Ubah/finalisasi nilai hanya `07:00–21:00` (`Asia/Jakarta`, rentang `[mulai, selesai)`). Atur lewat `.env`: `ACCESS_HOURS_START`, `ACCESS_HOURS_END`, `ACCESS_HOURS_TZ`, lalu `docker compose up -d gateway`.
 
-## Struktur & dokumentasi
-`gateway/` · `service-nilai/` · `service-transkrip/` · `db/init/` · `docs/` (ARCHITECTURE, DATABASE, API, SECURITY, TESTING, DEMO) · `PLAN.md` · `AGENTS.md`
+## Struktur
+`gateway/` · `service-nilai/` · `service-transkrip/` · `db/init/` · `scripts/` · `postman/`
 
 ## Keterbatasan
-Lihat `docs/SECURITY.md` §4 (tanpa TLS antar-container, secret gateway statis, seed hanya untuk dev, port service dibuka ke localhost hanya untuk demo).
+Tanpa TLS antar-container, secret gateway statis, seed hanya untuk dev, dan port service dibuka ke localhost hanya untuk menguji penolakan akses langsung. Semua koneksi diasumsikan jaringan lab yang terisolasi.
